@@ -1,0 +1,57 @@
+# Maven build output
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Local scratch, documentation, and data files
+/scratch/
+storage/
+sample_receipt.pdf
+SEP- 17.xlsx
+
+# Compiled class files
+*.class
+
+# Log files
+*.log
+logs/
+
+# Environment files and secrets
+.env
+.env.local
+*.secret
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+out/
+.idea_modules/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# Visual Studio Code
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Crash logs
+hs_err_pid*
+replay_pid*

@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # PostgreSQL 16 - Relational Database
+  # Primary data store for the Amoudi Financial Management system.
+  # Schema migrations are exclusively managed by Flyway on application startup.
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: amoudi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-amoudi_financial}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - amoudi_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-amoudi_financial}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # MinIO - S3-Compatible Object Storage
+  # Included for upcoming phases to store raw uploaded files:
+  # 1. Galileo and BSP raw Excel reports before/after parsing
+  # 2. Uploaded payment receipts and proof attachments
+  # Storage business logic is NOT implemented in this foundation phase.
+  # ----------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: amoudi-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-amoudi_secret_key}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"         # MinIO S3 API
+      - "${MINIO_CONSOLE_PORT:-9001}:9001" # MinIO Web Console UI
+    volumes:
+      - amoudi_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  amoudi_postgres_data:
+    name: amoudi_postgres_data
+  amoudi_minio_data:
+    name: amoudi_minio_data
