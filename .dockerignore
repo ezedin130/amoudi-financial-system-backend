@@ -28,29 +28,29 @@ out/
 *.p12
 
 # Local uploads, sample files and receipts (never bake into production image)
-storage/
-sample_receipt.pdf
+/storage/
+/sample_receipt.pdf
 /*.xlsx
 /*.xls
 /*.csv
 /*.pdf
 
 # Scratch and debug files
-scratch/
+/scratch/
 *.log
-logs/
+/logs/
 
 # Database dumps and backups (preserve src/ migration files)
 *.dump
 *.backup
 
 # Development utilities and API test collections
-postman/
+/postman/
 docker-compose*.yml
 
 # Documentation
 README.md
-docs/
+/docs/
 
 # Operating system metadata
 .DS_Store

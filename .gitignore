@@ -12,16 +12,18 @@ buildNumber.properties
 
 # Local scratch, documentation, and data files
 /scratch/
-storage/
-sample_receipt.pdf
-SEP- 17.xlsx
+/storage/
+/sample_receipt.pdf
+/SEP- 17.xlsx
+postman/*.xlsx
+postman/*.pdf
 
 # Compiled class files
 *.class
 
 # Log files
 *.log
-logs/
+/logs/
 
 # Environment files and secrets
 .env
