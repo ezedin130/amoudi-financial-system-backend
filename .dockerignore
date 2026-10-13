@@ -1,0 +1,57 @@
+# =============================================================================
+# .dockerignore - Docker build context exclusions for Amoudi Financial Backend
+# Excludes local environments, credentials, test data, and build artifacts
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Local build outputs (built fresh inside container build stage)
+target/
+build/
+out/
+
+# Environment files, secrets and credentials
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.p12
+
+# Local uploads, sample files and receipts (never bake into production image)
+storage/
+sample_receipt.pdf
+/*.xlsx
+/*.xls
+/*.csv
+/*.pdf
+
+# Scratch and debug files
+scratch/
+*.log
+logs/
+
+# Database dumps and backups (preserve src/ migration files)
+*.dump
+*.backup
+
+# Development utilities and API test collections
+postman/
+docker-compose*.yml
+
+# Documentation
+README.md
+docs/
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
