@@ -8,6 +8,10 @@ spring:
     name: amoudi-financial
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:amoudi_financial}
@@ -47,7 +51,26 @@ spring:
       max-file-size: 25MB
       max-request-size: 30MB
 
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:amoudibusinessgroup@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 app:
+  mail:
+    shared-inbox: ${APP_MAIL_SHARED_INBOX:amoudibusinessgroup@gmail.com}
+    from: ${APP_MAIL_FROM:noreply@amouditravel.com}
+    subject-prefix: ${APP_MAIL_SUBJECT_PREFIX:[Amoudi Financial] }
   storage:
     local:
       upload-dir: ${STORAGE_PATH:./storage/uploads}

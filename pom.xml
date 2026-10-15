@@ -43,6 +43,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Spring Boot Mail Starter (for password recovery OTP emails) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- JJWT (Java JWT) for Stateless Token-Based Authentication -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

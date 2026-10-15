@@ -77,6 +77,9 @@ public class SecurityConfig {
                         // Public endpoints strictly constrained by HTTP method
                         .requestMatchers(HttpMethod.GET, Constants.HEALTH_ENDPOINT).permitAll()
                         .requestMatchers(HttpMethod.POST, Constants.AUTH_LOGIN_ENDPOINT).permitAll()
+                        .requestMatchers(HttpMethod.POST, Constants.AUTH_FORGOT_PASSWORD_ENDPOINT).permitAll()
+                        .requestMatchers(HttpMethod.POST, Constants.AUTH_VERIFY_RESET_OTP_ENDPOINT).permitAll()
+                        .requestMatchers(HttpMethod.POST, Constants.AUTH_RESET_PASSWORD_ENDPOINT).permitAll()
                         .requestMatchers("/error").permitAll()
                         // Protected endpoints (including /api/v1/auth/me) require authentication
                         .anyRequest().authenticated()

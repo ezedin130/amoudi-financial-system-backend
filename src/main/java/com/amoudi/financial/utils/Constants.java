@@ -14,6 +14,9 @@ public final class Constants {
     public static final String AUTH_API_PREFIX = API_V1_PREFIX + "/auth";
     public static final String AUTH_LOGIN_ENDPOINT = AUTH_API_PREFIX + "/login";
     public static final String AUTH_ME_ENDPOINT = AUTH_API_PREFIX + "/me";
+    public static final String AUTH_FORGOT_PASSWORD_ENDPOINT = AUTH_API_PREFIX + "/forgot-password";
+    public static final String AUTH_VERIFY_RESET_OTP_ENDPOINT = AUTH_API_PREFIX + "/verify-reset-otp";
+    public static final String AUTH_RESET_PASSWORD_ENDPOINT = AUTH_API_PREFIX + "/reset-password";
     public static final String NON_IATAS_API_PREFIX = API_V1_PREFIX + "/non-iatas";
     public static final String SALES_API_PREFIX = API_V1_PREFIX + "/sales";
     public static final String FINANCIAL_SUMMARIES_API_PREFIX = API_V1_PREFIX + "/financial-summaries";

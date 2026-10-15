@@ -19,6 +19,10 @@ spring:
     clean-disabled: false
 
 app:
+  mail:
+    shared-inbox: company-test-inbox@amouditravel.com
+    from: noreply@amouditravel.com
+    subject-prefix: "[Test] "
   cors:
     allowed-origins: http://localhost:3000
   jwt:
