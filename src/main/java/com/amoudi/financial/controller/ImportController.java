@@ -38,7 +38,7 @@ public class ImportController {
      * Enforces Sheet2 authority, G.TOT amounts, duplicate prevention, and Non-IATA mapping.
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE', 'GENERAL_MANAGER')")
     public ResponseEntity<ApiResponse<ImportBatchResponse>> uploadAndProcessReport(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserPrincipal principal

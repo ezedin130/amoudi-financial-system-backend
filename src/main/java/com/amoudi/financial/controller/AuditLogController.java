@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Controller for querying immutable audit logs.
- * Restricted strictly to the FINANCE role.
+ * Accessible by FINANCE and GENERAL_MANAGER roles.
  */
 @RestController
 @RequestMapping(Constants.AUDIT_LOGS_API_PREFIX)
-@PreAuthorize("hasRole('FINANCE')")
+@PreAuthorize("hasAnyRole('FINANCE', 'GENERAL_MANAGER')")
 public class AuditLogController {
 
     private final AuditLogRepository auditLogRepository;

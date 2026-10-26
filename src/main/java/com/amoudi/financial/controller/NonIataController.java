@@ -77,7 +77,7 @@ public class NonIataController {
      * Code must be unique. Initial status will be ACTIVE.
      */
     @PostMapping
-    @PreAuthorize("hasRole('FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE', 'GENERAL_MANAGER')")
     public ResponseEntity<ApiResponse<NonIataResponse>> createNonIata(@Valid @RequestBody NonIataCreateRequest request) {
         NonIataResponse created = nonIataService.createNonIata(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -89,7 +89,7 @@ public class NonIataController {
      * Note: Code is immutable and cannot be updated.
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE', 'GENERAL_MANAGER')")
     public ResponseEntity<ApiResponse<NonIataResponse>> updateNonIata(
             @PathVariable Long id,
             @Valid @RequestBody NonIataUpdateRequest request
@@ -102,7 +102,7 @@ public class NonIataController {
      * Updates the operational status (ACTIVE / INACTIVE) of a Non-IATA account.
      */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE', 'GENERAL_MANAGER')")
     public ResponseEntity<ApiResponse<NonIataResponse>> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody NonIataStatusUpdateRequest request

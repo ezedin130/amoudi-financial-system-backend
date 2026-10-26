@@ -134,10 +134,10 @@ public class PaymentController {
 
     /**
      * Cancels an existing POSTED payment transaction.
-     * Restricted to FINANCE role.
+     * Accessible by FINANCE and GENERAL_MANAGER roles.
      */
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasRole('FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE', 'GENERAL_MANAGER')")
     public ResponseEntity<ApiResponse<PaymentResponse>> cancelPayment(
             @PathVariable Long id,
             Authentication authentication

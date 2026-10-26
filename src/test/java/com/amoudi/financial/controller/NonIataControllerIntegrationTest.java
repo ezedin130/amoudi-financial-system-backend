@@ -182,11 +182,11 @@ class NonIataControllerIntegrationTest {
     }
 
     // -------------------------------------------------------------
-    // Scenario 2: POST /api/v1/non-iatas by GENERAL_MANAGER -> 403 Forbidden
+    // Scenario 2: POST /api/v1/non-iatas by GENERAL_MANAGER -> 201 Created
     // -------------------------------------------------------------
     @Test
-    @DisplayName("Scenario 2: GENERAL_MANAGER cannot create a Non-IATA account (403 Forbidden)")
-    void createNonIata_byGeneralManager_returns403Forbidden() throws Exception {
+    @DisplayName("Scenario 2: GENERAL_MANAGER can create a Non-IATA account (201 Created)")
+    void createNonIata_byGeneralManager_returns201Created() throws Exception {
         NonIataCreateRequest request = NonIataCreateRequest.builder()
                 .code("QUEEN_SHEBA")
                 .name("Queen Sheba Travel")
@@ -196,9 +196,9 @@ class NonIataControllerIntegrationTest {
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status", is(403)))
-                .andExpect(jsonPath("$.error", is("ACCESS_DENIED")));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.code", is("QUEEN_SHEBA")));
     }
 
     // -------------------------------------------------------------
@@ -367,21 +367,22 @@ class NonIataControllerIntegrationTest {
     }
 
     // -------------------------------------------------------------
-    // Scenario 12: PUT /api/v1/non-iatas/{id} by GENERAL_MANAGER -> 403 Forbidden
+    // Scenario 12: PUT /api/v1/non-iatas/{id} by GENERAL_MANAGER -> 200 OK
     // -------------------------------------------------------------
     @Test
-    @DisplayName("Scenario 12: GENERAL_MANAGER cannot update Non-IATA details (403 Forbidden)")
-    void updateNonIata_byGeneralManager_returns403Forbidden() throws Exception {
+    @DisplayName("Scenario 12: GENERAL_MANAGER can update Non-IATA details (200 OK)")
+    void updateNonIata_byGeneralManager_returns200Ok() throws Exception {
         NonIataUpdateRequest updateRequest = NonIataUpdateRequest.builder()
-                .name("Unauthorized Update")
+                .name("Authorized GM Update")
                 .build();
 
         mockMvc.perform(put(Constants.NON_IATAS_API_PREFIX + "/" + existingAccount.getId())
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status", is(403)));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.name", is("Authorized GM Update")));
     }
 
     // -------------------------------------------------------------
@@ -461,11 +462,11 @@ class NonIataControllerIntegrationTest {
     }
 
     // -------------------------------------------------------------
-    // Scenario 17: PATCH /api/v1/non-iatas/{id}/status by GENERAL_MANAGER -> 403 Forbidden
+    // Scenario 17: PATCH /api/v1/non-iatas/{id}/status by GENERAL_MANAGER -> 200 OK
     // -------------------------------------------------------------
     @Test
-    @DisplayName("Scenario 17: GENERAL_MANAGER cannot change Non-IATA status (403 Forbidden)")
-    void patchStatus_byGeneralManager_returns403Forbidden() throws Exception {
+    @DisplayName("Scenario 17: GENERAL_MANAGER can change Non-IATA status (200 OK)")
+    void patchStatus_byGeneralManager_returns200Ok() throws Exception {
         NonIataStatusUpdateRequest statusRequest = NonIataStatusUpdateRequest.builder()
                 .status(NonIataStatus.INACTIVE)
                 .build();
@@ -474,8 +475,9 @@ class NonIataControllerIntegrationTest {
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status", is(403)));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.status", is("INACTIVE")));
     }
 
     // -------------------------------------------------------------

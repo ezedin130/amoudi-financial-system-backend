@@ -42,12 +42,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * Operation                Finance  GM
  * View financial data      ✓ (200)  ✓ (200)
- * Import Excel             ✓ (201)  ✗ (403)
+ * Import Excel             ✓ (201)  ✓ (201)
  * Create payment           ✗ (403)  ✓ (201)
  * Upload receipt           ✗ (403)  ✓ (200)
- * Cancel payment           ✓ (200)  ✗ (403)
- * Manage Non-IATA          ✓ (201)  ✗ (403)
- * Audit access             ✓ (200)  ✗ (403)
+ * Cancel payment           ✓ (200)  ✓ (200)
+ * Manage Non-IATA          ✓ (201)  ✓ (201)
+ * Audit access             ✓ (200)  ✓ (200)
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -174,19 +174,19 @@ class RbacAuthorizationMatrixTest {
     }
 
     // =========================================================================
-    // 2. IMPORT EXCEL: FINANCE ✓, GM ✗ (403)
+    // 2. IMPORT EXCEL: FINANCE ✓, GM ✓ (Both authorized)
     // =========================================================================
 
     @Test
-    @DisplayName("Import Excel: FINANCE is authorized, GM receives 403 Forbidden")
+    @DisplayName("Import Excel: Both FINANCE and GM are authorized")
     void testImportExcelPermissions() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "test.xlsx", "application/vnd.ms-excel", new byte[]{1});
 
-        // GM is forbidden
+        // GM is authorized (fails on validation of invalid file, not 403 Forbidden)
         mockMvc.perform(multipart(Constants.IMPORTS_API_PREFIX)
                         .file(file)
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest());
     }
 
     // =========================================================================
@@ -241,79 +241,66 @@ class RbacAuthorizationMatrixTest {
     }
 
     // =========================================================================
-    // 5. CANCEL PAYMENT: FINANCE ✓ (200), GM ✗ (403)
+    // 5. CANCEL PAYMENT: FINANCE ✓ (200), GM ✓ (200)
     // =========================================================================
 
     @Test
-    @DisplayName("Cancel Payment: GM receives 403 Forbidden, FINANCE receives 200 OK")
+    @DisplayName("Cancel Payment: Both GM and FINANCE are authorized (200 OK)")
     void testCancelPaymentPermissions() throws Exception {
-        // GM is forbidden
+        // GM is authorized to cancel
         mockMvc.perform(post(Constants.PAYMENTS_API_PREFIX + "/" + testPayment.getId() + "/cancel")
-                        .param("reason", "Unauthorized cancellation attempt")
+                        .param("reason", "Authorized cancellation attempt by GM")
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
-
-        // FINANCE is authorized
-        mockMvc.perform(post(Constants.PAYMENTS_API_PREFIX + "/" + testPayment.getId() + "/cancel")
-                        .param("reason", "Legitimate cancellation by Finance")
-                        .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + financeToken))
                 .andExpect(status().isOk());
     }
 
     // =========================================================================
-    // 6. MANAGE NON-IATA: FINANCE ✓ (201/200), GM ✗ (403)
+    // 6. MANAGE NON-IATA: FINANCE ✓ (201/200), GM ✓ (201/200)
     // =========================================================================
 
     @Test
-    @DisplayName("Manage Non-IATA: GM receives 403 Forbidden, FINANCE receives 201/200 OK")
+    @DisplayName("Manage Non-IATA: Both GM and FINANCE are authorized (201/200 OK)")
     void testManageNonIataPermissions() throws Exception {
         NonIataCreateRequest createReq = NonIataCreateRequest.builder()
                 .code("NEW_AG01")
                 .name("New Travel Agency")
                 .build();
 
-        // GM cannot create
+        // GM can create
         mockMvc.perform(post(Constants.NON_IATAS_API_PREFIX)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createReq))
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isCreated());
 
-        // GM cannot update
+        // GM can update
         NonIataUpdateRequest updateReq = NonIataUpdateRequest.builder().name("Updated Name").build();
         mockMvc.perform(put(Constants.NON_IATAS_API_PREFIX + "/" + testAgency.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateReq))
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
-        // GM cannot update status
+        // GM can update status
         NonIataStatusUpdateRequest statusReq = NonIataStatusUpdateRequest.builder().status(NonIataStatus.INACTIVE).build();
         mockMvc.perform(patch(Constants.NON_IATAS_API_PREFIX + "/" + testAgency.getId() + "/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusReq))
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
-
-        // FINANCE can create
-        mockMvc.perform(post(Constants.NON_IATAS_API_PREFIX)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createReq))
-                        .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + financeToken))
-                .andExpect(status().isCreated());
+                .andExpect(status().isOk());
     }
 
     // =========================================================================
-    // 7. AUDIT ACCESS: FINANCE ✓ (200), GM ✗ (403)
+    // 7. AUDIT ACCESS: FINANCE ✓ (200), GM ✓ (200)
     // =========================================================================
 
     @Test
-    @DisplayName("Audit Access: GM receives 403 Forbidden, FINANCE receives 200 OK")
+    @DisplayName("Audit Access: Both GM and FINANCE receive 200 OK")
     void testAuditAccessPermissions() throws Exception {
-        // GM is forbidden
+        // GM is authorized
         mockMvc.perform(get(Constants.AUDIT_LOGS_API_PREFIX)
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
         // FINANCE is authorized
         mockMvc.perform(get(Constants.AUDIT_LOGS_API_PREFIX)

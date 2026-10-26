@@ -139,14 +139,14 @@ class ImportControllerIntegrationTest {
     // =========================================================================
 
     @Test
-    @DisplayName("GENERAL_MANAGER receives 403 Forbidden when attempting report upload")
-    void testUploadForbiddenForGeneralManager() throws Exception {
+    @DisplayName("GENERAL_MANAGER is authorized when attempting report upload")
+    void testUploadAuthorizedForGeneralManager() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "test.xlsx", "application/vnd.ms-excel", new byte[]{1, 2, 3});
 
         mockMvc.perform(multipart(Constants.IMPORTS_API_PREFIX)
                         .file(file)
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -372,27 +372,33 @@ class ImportControllerIntegrationTest {
     // =========================================================================
 
     @Test
-    @DisplayName("Finance can register new name mapping; GM receives 403 Forbidden")
+    @DisplayName("Both Finance and GM can register new name mapping")
     void testNameMappingManagement() throws Exception {
         NameMappingRequest req = NameMappingRequest.builder()
                 .sourceName("INV NEW TEST AGENCY")
                 .nonIataId(halifa.getId())
                 .build();
 
-        // GM forbidden
+        // GM allowed
         mockMvc.perform(post(Constants.NAME_MAPPINGS_API_PREFIX)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req))
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden());
-
-        // Finance allowed
-        mockMvc.perform(post(Constants.NAME_MAPPINGS_API_PREFIX)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req))
-                        .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + financeToken))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.sourceName", is("INV NEW TEST AGENCY")))
+                .andExpect(jsonPath("$.data.nonIataCode", is("HAL01")));
+
+        // Finance allowed
+        NameMappingRequest reqFinance = NameMappingRequest.builder()
+                .sourceName("INV FINANCE TEST AGENCY")
+                .nonIataId(halifa.getId())
+                .build();
+        mockMvc.perform(post(Constants.NAME_MAPPINGS_API_PREFIX)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reqFinance))
+                        .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + financeToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.sourceName", is("INV FINANCE TEST AGENCY")))
                 .andExpect(jsonPath("$.data.nonIataCode", is("HAL01")));
 
         // List mappings accessible by both

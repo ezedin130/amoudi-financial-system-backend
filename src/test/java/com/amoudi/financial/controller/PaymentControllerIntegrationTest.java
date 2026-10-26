@@ -207,12 +207,12 @@ class PaymentControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Security: GM cannot cancel payment -> 403 Forbidden")
-    void gmUser_cancelPayment_forbidden403() throws Exception {
-        mockMvc.perform(post(Constants.PAYMENTS_API_PREFIX + "/1/cancel")
+    @DisplayName("Security: GM is authorized to cancel payment")
+    void gmUser_cancelPayment_authorized() throws Exception {
+        mockMvc.perform(post(Constants.PAYMENTS_API_PREFIX + "/999999/cancel")
                         .header(Constants.HEADER_AUTHORIZATION, Constants.TOKEN_BEARER_PREFIX + gmToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error", is("ACCESS_DENIED")));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("RESOURCE_NOT_FOUND")));
     }
 
     // =========================================================================

@@ -146,13 +146,13 @@ class SecurityHardeningTest {
     }
 
     @Test
-    @DisplayName("GENERAL_MANAGER role attempting FINANCE-only cancel payment endpoint is rejected with 403 Forbidden")
-    void gmRole_callingFinanceOnlyCancel_isForbiddenWith403() throws Exception {
-        mockMvc.perform(post(Constants.PAYMENTS_API_PREFIX + "/1/cancel")
+    @DisplayName("GENERAL_MANAGER role is authorized to call cancel payment endpoint (not 403 Forbidden)")
+    void gmRole_callingCancelPayment_isAuthorized() throws Exception {
+        mockMvc.perform(post(Constants.PAYMENTS_API_PREFIX + "/999999/cancel")
                         .header("Authorization", "Bearer " + gmToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status", is(403)))
-                .andExpect(jsonPath("$.error", is("ACCESS_DENIED")));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status", is(404)))
+                .andExpect(jsonPath("$.error", is("RESOURCE_NOT_FOUND")));
     }
 
     @Test

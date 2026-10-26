@@ -48,7 +48,7 @@ public class NameMappingController {
      * Registers a new authoritative source name to Non-IATA mapping.
      */
     @PostMapping
-    @PreAuthorize("hasRole('FINANCE')")
+    @PreAuthorize("hasAnyRole('FINANCE', 'GENERAL_MANAGER')")
     public ResponseEntity<ApiResponse<NameMappingResponse>> createMapping(
             @Valid @RequestBody NameMappingRequest request,
             @AuthenticationPrincipal UserPrincipal principal
