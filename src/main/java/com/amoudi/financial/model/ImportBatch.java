@@ -65,6 +65,18 @@ public class ImportBatch extends BaseEntity {
     private int failedRows;
 
     @Builder.Default
+    @Column(name = "sales_count", nullable = false)
+    private int salesCount = 0;
+
+    @Builder.Default
+    @Column(name = "refunds_count", nullable = false)
+    private int refundsCount = 0;
+
+    @Builder.Default
+    @Column(name = "exchanges_count", nullable = false)
+    private int exchangesCount = 0;
+
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
     private ImportStatus status = ImportStatus.UPLOADED;

@@ -27,7 +27,8 @@ public final class SalesTransactionSpecification {
             LocalDate endDate,
             String ticketNumber,
             String transactionReference,
-            Long importBatchId
+            Long importBatchId,
+            com.amoudi.financial.enums.TransactionType transactionType
     ) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -59,6 +60,10 @@ public final class SalesTransactionSpecification {
 
             if (importBatchId != null) {
                 predicates.add(cb.equal(root.get("importBatch").get("id"), importBatchId));
+            }
+
+            if (transactionType != null) {
+                predicates.add(cb.equal(root.get("transactionType"), transactionType));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

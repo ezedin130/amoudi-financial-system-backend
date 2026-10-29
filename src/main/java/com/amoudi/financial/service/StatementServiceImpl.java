@@ -4,6 +4,7 @@ import com.amoudi.financial.dto.AccountStatementResponse;
 import com.amoudi.financial.dto.StatementTransactionResponse;
 import com.amoudi.financial.enums.PaymentStatus;
 import com.amoudi.financial.enums.StatementTransactionType;
+import com.amoudi.financial.enums.TransactionType;
 import com.amoudi.financial.exception.BadRequestException;
 import com.amoudi.financial.exception.ResourceNotFoundException;
 import com.amoudi.financial.model.NonIata;
@@ -108,20 +109,43 @@ public class StatementServiceImpl implements StatementService {
         for (SalesTransaction sale : sales) {
             String passenger = sale.getPassengerName() != null ? sale.getPassengerName() : "N/A";
             String route = sale.getRoute() != null ? " / " + sale.getRoute() : "";
-            BigDecimal saleDebit = (sale.getGrandTotal() != null ? sale.getGrandTotal() : sale.getAmount())
+            BigDecimal grandTotalVal = (sale.getGrandTotal() != null ? sale.getGrandTotal() : sale.getAmount())
                     .setScale(2, RoundingMode.HALF_UP);
+
+            StatementTransactionType stmtType;
+            String descPrefix;
+            BigDecimal debit;
+            BigDecimal credit;
+
+            if (sale.getTransactionType() == TransactionType.REFUND) {
+                stmtType = StatementTransactionType.REFUND;
+                descPrefix = "Ticket Refund: ";
+                debit = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+                credit = grandTotalVal.abs();
+            } else if (sale.getTransactionType() == TransactionType.EXCHANGE) {
+                stmtType = StatementTransactionType.EXCHANGE;
+                descPrefix = "Ticket Exchange: ";
+                debit = grandTotalVal;
+                credit = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            } else {
+                stmtType = StatementTransactionType.SALE;
+                descPrefix = "Ticket Sale: ";
+                debit = grandTotalVal;
+                credit = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            }
+
             allTransactions.add(StatementTransactionResponse.builder()
                     .transactionDate(sale.getSaleDate())
-                    .type(StatementTransactionType.SALE)
+                    .type(stmtType)
                     .reference(sale.getTicketNumber())
-                    .description("Ticket Sale: " + passenger + route)
-                    .debit(saleDebit)
-                    .credit(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                    .description(descPrefix + passenger + route)
+                    .debit(debit)
+                    .credit(credit)
                     .baseFare(sale.getBaseFare())
                     .tax(sale.getTax())
                     .totalSale(sale.getTotalSale())
                     .serviceCharge(sale.getServiceCharge())
-                    .grandTotal(saleDebit)
+                    .grandTotal(grandTotalVal)
                     .sourceTransactionId(sale.getId())
                     .currency(sale.getCurrency())
                     .build());
@@ -157,21 +181,30 @@ public class StatementServiceImpl implements StatementService {
                     .build());
         }
 
-        // 4. Sort deterministically: transactionDate ASC -> type (SALE before PAYMENT) -> sourceTransactionId ASC
+        // 4. Sort deterministically: transactionDate ASC -> type (SALE, EXCHANGE before REFUND, PAYMENT) -> sourceTransactionId ASC
         allTransactions.sort(Comparator
                 .comparing(StatementTransactionResponse::getTransactionDate)
-                .thenComparingInt(tx -> tx.getType() == StatementTransactionType.SALE ? 0 : 1)
+                .thenComparingInt(tx -> {
+                    if (tx.getType() == StatementTransactionType.SALE) return 0;
+                    if (tx.getType() == StatementTransactionType.EXCHANGE) return 1;
+                    if (tx.getType() == StatementTransactionType.REFUND) return 2;
+                    return 3;
+                })
                 .thenComparing(StatementTransactionResponse::getSourceTransactionId));
 
         // 5. Compute running balances and period totals
         BigDecimal runningBalance = openingBalance;
         BigDecimal totalPeriodSales = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalPeriodRefunds = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalPeriodPayments = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
         for (StatementTransactionResponse tx : allTransactions) {
-            if (tx.getType() == StatementTransactionType.SALE) {
+            if (tx.getType() == StatementTransactionType.SALE || tx.getType() == StatementTransactionType.EXCHANGE) {
                 runningBalance = runningBalance.add(tx.getDebit());
                 totalPeriodSales = totalPeriodSales.add(tx.getDebit());
+            } else if (tx.getType() == StatementTransactionType.REFUND) {
+                runningBalance = runningBalance.subtract(tx.getCredit());
+                totalPeriodRefunds = totalPeriodRefunds.add(tx.getCredit());
             } else {
                 runningBalance = runningBalance.subtract(tx.getCredit());
                 totalPeriodPayments = totalPeriodPayments.add(tx.getCredit());
@@ -179,6 +212,7 @@ public class StatementServiceImpl implements StatementService {
             tx.setRunningBalance(runningBalance.setScale(2, RoundingMode.HALF_UP));
         }
 
+        BigDecimal netPeriodSales = totalPeriodSales.subtract(totalPeriodRefunds).setScale(2, RoundingMode.HALF_UP);
         BigDecimal closingBalance = runningBalance.setScale(2, RoundingMode.HALF_UP);
 
         return AccountStatementResponse.builder()
@@ -190,6 +224,8 @@ public class StatementServiceImpl implements StatementService {
                 .dateTo(dateTo)
                 .openingBalance(openingBalance)
                 .totalSales(totalPeriodSales)
+                .totalRefunds(totalPeriodRefunds)
+                .netSales(netPeriodSales)
                 .totalPayments(totalPeriodPayments)
                 .closingBalance(closingBalance)
                 .transactionCount(allTransactions.size())

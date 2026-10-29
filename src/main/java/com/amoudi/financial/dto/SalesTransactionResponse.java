@@ -41,6 +41,9 @@ public class SalesTransactionResponse {
     private Integer sourceRowNumber;
     private String sourceTransactionKey;
     private Long importBatchId;
+    private com.amoudi.financial.enums.TransactionType transactionType;
+    private Long originalTransactionId;
+    private String originalTicketNumber;
     private LocalDateTime createdAt;
 
     public static SalesTransactionResponse fromEntity(SalesTransaction entity) {
@@ -68,6 +71,9 @@ public class SalesTransactionResponse {
                 .sourceRowNumber(entity.getSourceRowNumber())
                 .sourceTransactionKey(entity.getSourceTransactionKey())
                 .importBatchId(entity.getImportBatch() != null ? entity.getImportBatch().getId() : null)
+                .transactionType(entity.getTransactionType() != null ? entity.getTransactionType() : com.amoudi.financial.enums.TransactionType.SALE)
+                .originalTransactionId(entity.getOriginalTransaction() != null ? entity.getOriginalTransaction().getId() : null)
+                .originalTicketNumber(entity.getOriginalTransaction() != null ? entity.getOriginalTransaction().getTicketNumber() : null)
                 .createdAt(entity.getCreatedAt())
                 .build();
     }

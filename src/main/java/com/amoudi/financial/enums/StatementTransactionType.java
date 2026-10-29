@@ -5,5 +5,7 @@ package com.amoudi.financial.enums;
  */
 public enum StatementTransactionType {
     SALE,
+    REFUND,
+    EXCHANGE,
     PAYMENT
 }

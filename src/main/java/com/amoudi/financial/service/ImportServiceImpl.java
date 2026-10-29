@@ -4,6 +4,7 @@ import com.amoudi.financial.dto.*;
 import com.amoudi.financial.enums.AuditAction;
 import com.amoudi.financial.enums.ImportErrorType;
 import com.amoudi.financial.enums.ImportStatus;
+import com.amoudi.financial.enums.TransactionType;
 import com.amoudi.financial.exception.BadRequestException;
 import com.amoudi.financial.exception.FileValidationException;
 import com.amoudi.financial.exception.ResourceNotFoundException;
@@ -134,8 +135,13 @@ public class ImportServiceImpl implements ImportService {
         int successfulCount = 0;
         int duplicateCount = 0;
         int unmatchedCount = 0;
+        int salesCount = 0;
+        int refundsCount = 0;
+        int exchangesCount = 0;
 
         for (ParsedSalesRow row : report.getValidRows()) {
+            TransactionType txType = row.getTransactionType() != null ? row.getTransactionType() : TransactionType.SALE;
+
             // Check Non-IATA mapping
             Optional<NonIata> nonIataOpt = nameMappingService.resolveNonIata(row.getSourceAgencyName());
             if (nonIataOpt.isEmpty()) {
@@ -171,6 +177,12 @@ public class ImportServiceImpl implements ImportService {
 
             batchSeenKeys.add(transKey);
 
+            // Attempt matching refund or exchange to original sale
+            SalesTransaction originalSale = null;
+            if (txType == TransactionType.REFUND || txType == TransactionType.EXCHANGE) {
+                originalSale = findMatchingOriginalSale(nonIataOpt.get(), row, transactionsToSave);
+            }
+
             // Construct immutable SalesTransaction
             BigDecimal grandTotal = row.getGrandTotal() != null ? row.getGrandTotal() : row.getAmount();
             SalesTransaction transaction = SalesTransaction.builder()
@@ -193,10 +205,19 @@ public class ImportServiceImpl implements ImportService {
                     .sourceAgencyName(row.getSourceAgencyName())
                     .sourceRowNumber(row.getSourceRowNumber())
                     .sourceTransactionKey(transKey)
+                    .transactionType(txType)
+                    .originalTransaction(originalSale)
                     .build();
 
             transactionsToSave.add(transaction);
             successfulCount++;
+            if (txType == TransactionType.SALE) {
+                salesCount++;
+            } else if (txType == TransactionType.REFUND) {
+                refundsCount++;
+            } else if (txType == TransactionType.EXCHANGE) {
+                exchangesCount++;
+            }
         }
 
         // 5. Persist valid transactions and errors
@@ -217,6 +238,9 @@ public class ImportServiceImpl implements ImportService {
         batch.setDuplicateRows(duplicateCount);
         batch.setUnmatchedRows(unmatchedCount);
         batch.setFailedRows(failedRows);
+        batch.setSalesCount(salesCount);
+        batch.setRefundsCount(refundsCount);
+        batch.setExchangesCount(exchangesCount);
 
         if (totalRows == 0) {
             batch.setStatus(ImportStatus.FAILED);
@@ -327,10 +351,75 @@ public class ImportServiceImpl implements ImportService {
                 .duplicateRows(batch.getDuplicateRows())
                 .unmatchedRows(batch.getUnmatchedRows())
                 .failedRows(batch.getFailedRows())
+                .salesCount(batch.getSalesCount())
+                .refundsCount(batch.getRefundsCount())
+                .exchangesCount(batch.getExchangesCount())
                 .status(batch.getStatus())
                 .errorSummary(batch.getErrorSummary())
                 .createdAt(batch.getCreatedAt())
                 .build();
+    }
+
+    private SalesTransaction findMatchingOriginalSale(NonIata nonIata, ParsedSalesRow row, List<SalesTransaction> currentBatchTransactions) {
+        String ticketToMatch = row.getTicketNumber();
+        if (!StringUtils.hasText(ticketToMatch)) {
+            return null;
+        }
+
+        String cleanTargetTicket = ticketToMatch.replaceAll("\\s+", "").trim();
+        if (cleanTargetTicket.isEmpty()) {
+            return null;
+        }
+
+        List<SalesTransaction> candidates = new ArrayList<>();
+
+        // 1. Search current in-flight batch transactions
+        for (SalesTransaction st : currentBatchTransactions) {
+            if (st.getNonIata().getId().equals(nonIata.getId())
+                    && st.getTicketNumber() != null
+                    && cleanTargetTicket.equalsIgnoreCase(st.getTicketNumber().replaceAll("\\s+", "").trim())) {
+                candidates.add(st);
+            }
+        }
+
+        // 2. Search already persisted database transactions
+        List<SalesTransaction> dbSales = salesTransactionRepository.findByNonIataId(nonIata.getId());
+        for (SalesTransaction st : dbSales) {
+            if (st.getTicketNumber() != null
+                    && cleanTargetTicket.equalsIgnoreCase(st.getTicketNumber().replaceAll("\\s+", "").trim())) {
+                candidates.add(st);
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            log.debug("No candidate original sale found for ticket '{}' on Non-IATA {}", ticketToMatch, nonIata.getCode());
+            return null;
+        }
+
+        if (candidates.size() == 1) {
+            SalesTransaction candidate = candidates.get(0);
+            // Verify passenger name if both are present
+            if (StringUtils.hasText(row.getPassengerName()) && StringUtils.hasText(candidate.getPassengerName())) {
+                String p1 = normalizePassengerName(row.getPassengerName());
+                String p2 = normalizePassengerName(candidate.getPassengerName());
+                if (!p1.equals(p2) && !p1.contains(p2) && !p2.contains(p1)) {
+                    log.warn("Conflicting passenger names between {} row ('{}') and candidate sale ('{}') on ticket {}",
+                            row.getTransactionType(), row.getPassengerName(), candidate.getPassengerName(), ticketToMatch);
+                    return null; // Evidence conflicts
+                }
+            }
+            return candidate;
+        }
+
+        // Multiple candidates exist -> ambiguous evidence, require review instead of guessing
+        log.warn("Multiple candidate sales ({}) found for ticket '{}' on Non-IATA {}",
+                candidates.size(), ticketToMatch, nonIata.getCode());
+        return null;
+    }
+
+    private String normalizePassengerName(String name) {
+        if (name == null) return "";
+        return name.replaceAll("[^a-zA-Z]", "").toLowerCase(Locale.ROOT);
     }
 
     private ImportBatchErrorResponse mapToErrorResponse(ImportBatchError err) {

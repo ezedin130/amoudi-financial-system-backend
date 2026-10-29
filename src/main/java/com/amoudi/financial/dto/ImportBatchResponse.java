@@ -29,6 +29,9 @@ public class ImportBatchResponse {
     private int duplicateRows;
     private int unmatchedRows;
     private int failedRows;
+    private int salesCount;
+    private int refundsCount;
+    private int exchangesCount;
     private ImportStatus status;
     private String errorSummary;
     private LocalDateTime createdAt;

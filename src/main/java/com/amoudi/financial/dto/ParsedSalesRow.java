@@ -1,5 +1,6 @@
 package com.amoudi.financial.dto;
 
+import com.amoudi.financial.enums.TransactionType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,4 +37,7 @@ public class ParsedSalesRow {
     private String pcc;
     private String son;
     private String sourceTransactionKey;
+    @Builder.Default
+    private TransactionType transactionType = TransactionType.SALE;
+    private String originalTicketNumber;
 }

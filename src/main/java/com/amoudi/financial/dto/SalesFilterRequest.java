@@ -31,4 +31,5 @@ public class SalesFilterRequest {
     private String ticketNumber;
     private String transactionReference;
     private Long importBatchId;
+    private com.amoudi.financial.enums.TransactionType transactionType;
 }

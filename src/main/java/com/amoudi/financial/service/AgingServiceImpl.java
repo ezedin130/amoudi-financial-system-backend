@@ -124,15 +124,26 @@ public class AgingServiceImpl implements AgingService {
         // 2. Fetch total posted payments up to asOfDate
         BigDecimal totalPayments = paymentRepository.sumPostedPaymentsUpToDate(nonIata.getId(), asOfDate, currency);
 
-        // 3. Compute total sales and total outstanding using authoritative grandTotal
-        BigDecimal totalSales = sales.stream()
-                .map(s -> s.getGrandTotal() != null ? s.getGrandTotal() : s.getAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 3. Compute total sales (net of refunds) and total outstanding using authoritative grandTotal
+        BigDecimal grossSales = BigDecimal.ZERO;
+        BigDecimal totalRefunds = BigDecimal.ZERO;
+        List<SalesTransaction> positiveSales = new ArrayList<>();
 
-        BigDecimal totalOutstanding = totalSales.subtract(totalPayments);
+        for (SalesTransaction s : sales) {
+            BigDecimal amt = s.getGrandTotal() != null ? s.getGrandTotal() : s.getAmount();
+            if (amt.compareTo(BigDecimal.ZERO) < 0) {
+                totalRefunds = totalRefunds.add(amt.abs());
+            } else {
+                grossSales = grossSales.add(amt);
+                positiveSales.add(s);
+            }
+        }
 
-        // 4. FIFO application: apply total posted payments against the oldest sales first
-        BigDecimal remainingPayments = totalPayments;
+        BigDecimal netSales = grossSales.subtract(totalRefunds);
+        BigDecimal totalOutstanding = netSales.subtract(totalPayments);
+
+        // 4. FIFO application: apply total posted payments and refund credits against the oldest sales first
+        BigDecimal remainingCredits = totalPayments.add(totalRefunds);
 
         BigDecimal current = BigDecimal.ZERO;
         BigDecimal days31To60 = BigDecimal.ZERO;
@@ -140,16 +151,16 @@ public class AgingServiceImpl implements AgingService {
         BigDecimal days91To120 = BigDecimal.ZERO;
         BigDecimal days120Plus = BigDecimal.ZERO;
 
-        for (SalesTransaction sale : sales) {
+        for (SalesTransaction sale : positiveSales) {
             BigDecimal saleAmount = sale.getGrandTotal() != null ? sale.getGrandTotal() : sale.getAmount();
 
-            if (remainingPayments.compareTo(saleAmount) >= 0) {
-                // Sale is completely covered by payments
-                remainingPayments = remainingPayments.subtract(saleAmount);
+            if (remainingCredits.compareTo(saleAmount) >= 0) {
+                // Sale is completely covered by payments/credits
+                remainingCredits = remainingCredits.subtract(saleAmount);
             } else {
                 // Sale is partially or fully uncovered
-                BigDecimal unsettledAmount = saleAmount.subtract(remainingPayments);
-                remainingPayments = BigDecimal.ZERO;
+                BigDecimal unsettledAmount = saleAmount.subtract(remainingCredits);
+                remainingCredits = BigDecimal.ZERO;
 
                 long days = ChronoUnit.DAYS.between(sale.getSaleDate(), asOfDate);
                 if (days <= 30) {
@@ -166,9 +177,9 @@ public class AgingServiceImpl implements AgingService {
             }
         }
 
-        // If unallocated surplus payments remain, net against current bucket to maintain exact reconciliation
-        if (remainingPayments.compareTo(BigDecimal.ZERO) > 0) {
-            current = current.subtract(remainingPayments);
+        // If unallocated surplus credits remain, net against current bucket to maintain exact reconciliation
+        if (remainingCredits.compareTo(BigDecimal.ZERO) > 0) {
+            current = current.subtract(remainingCredits);
         }
 
         return AgingRowResponse.builder()
@@ -181,7 +192,7 @@ public class AgingServiceImpl implements AgingService {
                 .days61To90(days61To90.setScale(2, RoundingMode.HALF_UP))
                 .days91To120(days91To120.setScale(2, RoundingMode.HALF_UP))
                 .days120Plus(days120Plus.setScale(2, RoundingMode.HALF_UP))
-                .totalSales(totalSales.setScale(2, RoundingMode.HALF_UP))
+                .totalSales(netSales.setScale(2, RoundingMode.HALF_UP))
                 .totalPayments(totalPayments.setScale(2, RoundingMode.HALF_UP))
                 .totalOutstanding(totalOutstanding.setScale(2, RoundingMode.HALF_UP))
                 .currency(currency)

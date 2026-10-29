@@ -26,6 +26,8 @@ public class AccountStatementResponse {
     private LocalDate dateTo;
     private BigDecimal openingBalance;
     private BigDecimal totalSales;
+    private BigDecimal totalRefunds;
+    private BigDecimal netSales;
     private BigDecimal totalPayments;
     private BigDecimal closingBalance;
     private int transactionCount;

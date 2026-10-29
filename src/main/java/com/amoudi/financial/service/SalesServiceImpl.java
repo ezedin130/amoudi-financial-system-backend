@@ -50,7 +50,8 @@ public class SalesServiceImpl implements SalesService {
             "baseFare",
             "tax",
             "totalSale",
-            "serviceCharge"
+            "serviceCharge",
+            "transactionType"
     );
 
     private final SalesTransactionRepository salesTransactionRepository;
@@ -85,7 +86,8 @@ public class SalesServiceImpl implements SalesService {
                         filter.getEndDate(),
                         filter.getTicketNumber(),
                         filter.getTransactionReference(),
-                        filter.getImportBatchId()
+                        filter.getImportBatchId(),
+                        filter.getTransactionType()
                 );
 
         Page<SalesTransaction> page = salesTransactionRepository.findAll(spec, safePageable);

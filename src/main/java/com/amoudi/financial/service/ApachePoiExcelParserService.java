@@ -4,6 +4,7 @@ import com.amoudi.financial.dto.ParsedReport;
 import com.amoudi.financial.dto.ParsedSalesRow;
 import com.amoudi.financial.dto.RowParsingFailure;
 import com.amoudi.financial.enums.ImportErrorType;
+import com.amoudi.financial.enums.TransactionType;
 import com.amoudi.financial.exception.FileValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -44,6 +45,7 @@ public class ApachePoiExcelParserService implements ExcelParserService {
     private static final String COL_PNR = "pnr";
 
     // Optional column headers
+    private static final String COL_TYPE = "type";
     private static final String COL_PCC = "pcc";
     private static final String COL_SON = "son";
 
@@ -224,8 +226,28 @@ public class ApachePoiExcelParserService implements ExcelParserService {
                     "Row is missing source agency name (Form Of Payment Free Text)");
         }
 
+        // Automatic transaction-type detection according to Amoudi Galileo rules
+        TransactionType txType = TransactionType.SALE;
+        if (colMap.containsKey(COL_TYPE)) {
+            String rawType = getCellString(row.getCell(colMap.get(COL_TYPE)));
+            if (StringUtils.hasText(rawType)) {
+                String cleanType = rawType.trim().toUpperCase(Locale.ROOT);
+                if ("RF".equals(cleanType) || "REFUND".equals(cleanType)) {
+                    txType = TransactionType.REFUND;
+                } else if ("XA".equals(cleanType) || "EXCHANGE".equals(cleanType)) {
+                    txType = TransactionType.EXCHANGE;
+                } else if ("SALE".equals(cleanType) || "SALES".equals(cleanType) || "TKTT".equals(cleanType) || "TKT".equals(cleanType)) {
+                    txType = TransactionType.SALE;
+                } else {
+                    throw new RowValidationException(rowNum, ticketNumber, agencyName,
+                            ImportErrorType.VALIDATION_ERROR,
+                            String.format("Unsupported transaction type '%s' in Type column", rawType.trim()));
+                }
+            }
+        }
+
         LocalDate saleDate = parseDate(row.getCell(colMap.get(COL_ISSUED)), rowNum, ticketNumber, agencyName);
-        BigDecimal grandTotal = parseAmount(row.getCell(colMap.get(COL_G_TOT)), evaluator, rowNum, ticketNumber, agencyName);
+        BigDecimal grandTotal = parseAmount(row.getCell(colMap.get(COL_G_TOT)), evaluator, rowNum, ticketNumber, agencyName, txType);
 
         BigDecimal baseFare = colMap.containsKey(COL_BASE_FARE)
                 ? parseOptionalAmount(row.getCell(colMap.get(COL_BASE_FARE)), evaluator, rowNum, ticketNumber, agencyName, "Base Fare")
@@ -275,11 +297,12 @@ public class ApachePoiExcelParserService implements ExcelParserService {
             }
         }
 
-        // Build deterministic source transaction key using authoritative grandTotal
+        // Build deterministic source transaction key using authoritative grandTotal and transaction type
         String cleanTicket = ticketNumber.replaceAll("\\s+", "");
         String cleanPnr = pnr != null ? pnr.trim() : "";
-        String sourceTransactionKey = String.format("TICKET:%s|DATE:%s|AMT:%.2f|PNR:%s",
-                cleanTicket, saleDate, grandTotal, cleanPnr);
+        String sourceTransactionKey = (txType == TransactionType.SALE)
+                ? String.format("TICKET:%s|DATE:%s|AMT:%.2f|PNR:%s", cleanTicket, saleDate, grandTotal, cleanPnr)
+                : String.format("TYPE:%s|TICKET:%s|DATE:%s|AMT:%.2f|PNR:%s", txType.name(), cleanTicket, saleDate, grandTotal, cleanPnr);
 
         return ParsedSalesRow.builder()
                 .sourceRowNumber(rowNum)
@@ -301,6 +324,7 @@ public class ApachePoiExcelParserService implements ExcelParserService {
                 .pcc(pcc)
                 .son(son)
                 .sourceTransactionKey(sourceTransactionKey)
+                .transactionType(txType)
                 .build();
     }
 
@@ -377,7 +401,7 @@ public class ApachePoiExcelParserService implements ExcelParserService {
         }
     }
 
-    private BigDecimal parseAmount(Cell cell, FormulaEvaluator evaluator, int rowNum, String ticket, String agency) {
+    private BigDecimal parseAmount(Cell cell, FormulaEvaluator evaluator, int rowNum, String ticket, String agency, TransactionType txType) {
         if (cell == null) {
             throw new RowValidationException(rowNum, ticket, agency, ImportErrorType.INVALID_AMOUNT, "Missing G.TOT amount");
         }
@@ -400,9 +424,16 @@ public class ApachePoiExcelParserService implements ExcelParserService {
             }
 
             BigDecimal amount = BigDecimal.valueOf(numericValue).setScale(2, RoundingMode.HALF_UP);
-            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new RowValidationException(rowNum, ticket, agency, ImportErrorType.INVALID_AMOUNT,
-                        "Authoritative amount (G.TOT) must be strictly positive (> 0), got: " + amount);
+            if (txType == TransactionType.REFUND) {
+                if (amount.compareTo(BigDecimal.ZERO) >= 0) {
+                    throw new RowValidationException(rowNum, ticket, agency, ImportErrorType.INVALID_AMOUNT,
+                            "Refund G.TOT must be negative (< 0), got positive or zero amount: " + amount);
+                }
+            } else {
+                if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new RowValidationException(rowNum, ticket, agency, ImportErrorType.INVALID_AMOUNT,
+                            txType + " authoritative amount (G.TOT) must be strictly positive (> 0), got: " + amount);
+                }
             }
             return amount;
         } catch (RowValidationException rve) {

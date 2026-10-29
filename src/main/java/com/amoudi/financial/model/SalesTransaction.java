@@ -1,7 +1,10 @@
 package com.amoudi.financial.model;
 
+import com.amoudi.financial.enums.TransactionType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -96,6 +99,15 @@ public class SalesTransaction {
     @Column(name = "source_transaction_key", length = 255)
     private String sourceTransactionKey;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", nullable = false, length = 20)
+    @Builder.Default
+    private TransactionType transactionType = TransactionType.SALE;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_transaction_id")
+    private SalesTransaction originalTransaction;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -106,6 +118,9 @@ public class SalesTransaction {
         }
         if (this.currency == null) {
             this.currency = "ETB";
+        }
+        if (this.transactionType == null) {
+            this.transactionType = TransactionType.SALE;
         }
         if (this.grandTotal == null && this.amount != null) {
             this.grandTotal = this.amount;
